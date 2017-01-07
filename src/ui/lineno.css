@@ -1,0 +1,17 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/* 
+    Created on : 20 Oct, 2014, 12:24:38 AM
+    Author     : navdeep singh <navdeepsingh.sidhu95@gmail.com>
+*/
+
+.label.lineno {
+    -fx-font-family: monospace;
+    -fx-font-style: italic;
+    -fx-background-color: #ddd;
+    -fx-text-fill: #666;
+    -fx-padding: 5px;
+}
