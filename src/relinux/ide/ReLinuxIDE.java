@@ -15,6 +15,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,6 +66,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+
 import tools.GlobalConstants;
 import static tools.Tools.write;
 import ui.CustomTree;
@@ -197,22 +199,23 @@ public class ReLinuxIDE extends Application implements Runnable {
             }
         });
         menuRun.getItems().addAll(itemParse, itemExec);
-        Menu menuServer = new Menu("Server");
-        MenuItem startServer = new MenuItem("Start Server");
-        startServer.setOnAction(new EventHandler() {
+
+        Menu menuFileSys = new Menu("FileSystem");
+        MenuItem itemExtractFromISO = new MenuItem("Extract from ISO");
+        itemExtractFromISO.setOnAction(new EventHandler() {
             public void handle(Event t) {
+                doExtractFromISO();
+            }
+        });
+        MenuItem itemUseCurrentSys = new MenuItem("Use Current System");
+        itemUseCurrentSys.setOnAction(new EventHandler() {
+            public void handle(Event t) {
+                // execute(selectedtab);
             }
         });
 
-        MenuItem stopServer = new MenuItem("StopServer");
-        stopServer.setOnAction(new EventHandler() {
-            @Override
-            public void handle(Event t) {
-            }
-        });
-        menuServer.getItems().addAll(startServer, stopServer);
-
-        menuBar.getMenus().addAll(menuFile, menuEdit, menuRun, menuServer);
+        menuFileSys.getItems().addAll(itemExtractFromISO, itemUseCurrentSys);
+        menuBar.getMenus().addAll(menuFile, menuEdit, menuFileSys);
         //Setup Center and Right
         // TabPaneWrapper wrapper = new TabPaneWrapper(Orientation.HORIZONTAL, .9);
         centerTabPane = new TabPane();
@@ -270,9 +273,10 @@ public class ReLinuxIDE extends Application implements Runnable {
                     selectedtab = Integer.parseInt(newTab.getId());
                     synchroniseUi();
 
-                    tools.GlobalConstants.selectedProjectFolder = FilesTree.getProjectName(new File(newTab.getTooltip().getText()));
-                    if (!tools.GlobalConstants.lastSelectedProject.trim().equalsIgnoreCase(tools.GlobalConstants.selectedProjectFolder.trim())) {
-                        loadManifest(new File("workspace/" + tools.GlobalConstants.selectedProjectFolder));
+                    GlobalConstants.selectedProjectFolder = FilesTree.getProjectName(new File(newTab.getTooltip().getText()));
+
+                    if (GlobalConstants.selectedProjectFolder != null && (!GlobalConstants.lastSelectedProject.trim().equalsIgnoreCase(GlobalConstants.selectedProjectFolder.trim()))) {
+                        loadManifest(new File("workspace/" + GlobalConstants.selectedProjectFolder));
                     }
 
                 }
@@ -337,24 +341,12 @@ public class ReLinuxIDE extends Application implements Runnable {
             }
         });
 
-    }
-
-    /*public Tab generateTab(String name) {
-     Tab result = new Tab(name);
-     BorderPane content = new BorderPane();
-     TextArea text = new TextArea();
-     content.setCenter(text);
-     result.setContent(content);
-     return result;
-     }*/
-    public static void addoutput(int pid, String content) {
-        //     outputTabTextArea[pid].appendText(content);
-        //    outputTabTextArea[pid].positionCaret(outputTabTextArea[pid].getLength());
+        synchroniseUi();
     }
 
     public void synchroniseUi() {
-        Thread t4 = new Thread(new FilesTree());
-        t4.start();
+        Thread t = new Thread(new FilesTree());
+        t.start();
 
         Platform.runLater(new Runnable() {
 
@@ -376,7 +368,7 @@ public class ReLinuxIDE extends Application implements Runnable {
 
         Stage newProjectDialog = new Stage();
         newProjectDialog.setTitle("New Project");
-
+        BorderPane borderPane = new BorderPane();
         Label folderExist = new Label("Folder Already Exist!!");
         folderExist.setTextFill(Paint.valueOf("Red"));
         folderExist.setVisible(false);
@@ -393,6 +385,7 @@ public class ReLinuxIDE extends Application implements Runnable {
         ObservableList<String> parentOS = FXCollections.observableArrayList("Ubuntu");
         parentOS.add("Debian");
         parentOS.add("Fedora");
+        parentOS.add("Other");
         ComboBox<String> combobox = new ComboBox((parentOS));
 
         ButtonBar buttonBar = new ButtonBar();
@@ -401,7 +394,7 @@ public class ReLinuxIDE extends Application implements Runnable {
         buttonBar.getButtons().addAll(okbutton, cancelbutton);
         okbutton.setOnAction((ActionEvent event) -> {
             boolean errorFree = true;
-            String project=projectName.getText().trim();
+            String project = projectName.getText().trim();
             if (combobox.getValue() == null || combobox.getValue().trim().length() < 1) {
                 combobox.setEffect(new DropShadow(2, 0.1, 0.1, Color.RED));
                 errorFree = false;
@@ -412,16 +405,18 @@ public class ReLinuxIDE extends Application implements Runnable {
                 errorFree = false;
 
             }
-            
-            if(errorFree){
-            new File("workspace/"+project).mkdirs();
+
+            if (errorFree) {
+
                 try {
-                    write(new File("workspace/"+project+"/manifest.xml"), "<PROJECTNAME>"+project+"</PROJECTNAME>");
+                    createProjectDirs(project);
+                    write(new File("workspace/" + project + "/manifest.xml"), "<PROJECTNAME>" + project + "</PROJECTNAME>");
+                    addTab(new File("workspace/" + project + "/manifest.xml"), tabcounter);
+                    newProjectDialog.close();
                 } catch (IOException ex) {
                     Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-             addTab(new File("workspace/"+project+"/manifest.xml"), tabcounter);
 
         });
         cancelbutton.setOnAction(new EventHandler<ActionEvent>() {
@@ -443,38 +438,13 @@ public class ReLinuxIDE extends Application implements Runnable {
         grid.add(folderExist, 2, 0);
         grid.add(new Label("Parent OS:"), 0, 1);
         grid.add(combobox, 1, 1);
-        grid.add(okbutton, 0, 2);
-        grid.add(cancelbutton, 1, 2);
-
-        newProjectDialog.setScene(new Scene(grid));
+        borderPane.setCenter(grid);
+        borderPane.setBottom(buttonBar);
+        borderPane.setPadding(new Insets(10, 10, 10, 10));
+        newProjectDialog.setScene(new Scene(borderPane));
         newProjectDialog.initOwner(stage);
         newProjectDialog.show();
-//        dlg.getActions().addAll(actionLogin, Dialog.Actions.CANCEL);
 
-//        FileChooser fileChooser = new FileChooser();
-//        fileChooser.setTitle("New  Project: Select Destination Directory");
-//        String initialDir = "workspace";
-//        fileChooser.setInitialDirectory(new File(initialDir));
-//        fileChooser.getExtensionFilters().addAll(
-//                new ExtensionFilter("All Files", "*.*"));
-//        File selectedFile = fileChooser.showSaveDialog(stage);
-//        if (selectedFile != null) {
-//            selectedFile.mkdir();
-//            tools.GlobalConstants.listOpenedProjects.add(selectedFile.getAbsolutePath());
-//            boolean mkdir = new File(selectedFile.getAbsolutePath() + "/libs").mkdirs();
-//            boolean mkdir2 = new File(selectedFile.getAbsolutePath() + "/src").mkdirs();
-//            boolean mkdir3 = new File(selectedFile.getAbsolutePath() + "/ast").mkdirs();
-//            boolean mkdir4 = new File(selectedFile.getAbsolutePath() + "/dist-db").mkdirs();
-//            String content = "<PROJECT>" + selectedFile.getName() + "</PROJECT>\n<MAIN></MAIN>\n<LIB></LIB>\n<ARGS></ARGS>";
-//            try {
-//                write(new File(selectedFile.getAbsolutePath() + "/manifest.xml"), content);
-//
-//                addTab(new File(selectedFile.getAbsolutePath() + "/manifest.xml"), tabcounter);
-//            } catch (IOException ex) {
-//                Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
-//            }
-//            System.out.println(selectedFile.getAbsolutePath() + " added to Open Project List");
-//        }
     }
 
     public void openProject() {
@@ -489,10 +459,17 @@ public class ReLinuxIDE extends Application implements Runnable {
                 new FileChooser.ExtensionFilter("XML Manifest", "*.xml"));
         File selectedFile = fileChooser.showSaveDialog(stage);
         if (selectedFile != null) {
-            tools.GlobalConstants.listOpenedProjects.add(selectedFile.getParentFile().getAbsolutePath());
+            GlobalConstants.listOpenedProjects.add(selectedFile.getParentFile().getAbsolutePath());
             System.out.println(selectedFile.getParentFile().getAbsolutePath() + " added to Open Project List");
             addTab(selectedFile, tabcounter);
         }
+    }
+
+    void createProjectDirs(String ProjectName) {
+        new File("workspace/" + ProjectName).mkdirs();
+        new File("workspace/" + ProjectName + "/mnt").mkdirs();
+        new File("workspace/" + ProjectName + "/extract").mkdirs();
+
     }
 
     public static void loadManifest(File f2) {
@@ -557,7 +534,7 @@ public class ReLinuxIDE extends Application implements Runnable {
             // Print the content on the console
             content += strLine;
             content += "\n";
-            System.out.println(strLine);
+            // System.out.println(strLine);
         }
 
 //Close the input stream
@@ -593,7 +570,7 @@ public class ReLinuxIDE extends Application implements Runnable {
     public static void saveOpenProjects() {
         try {
             try (FileWriter fw = new FileWriter("appdb/projects.xml"); PrintWriter pw = new PrintWriter(fw)) {
-                tools.GlobalConstants.listOpenedProjects.stream().forEach((get) -> {
+                GlobalConstants.listOpenedProjects.stream().forEach((get) -> {
                     pw.println(get);
                 });
             }
@@ -620,8 +597,8 @@ public class ReLinuxIDE extends Application implements Runnable {
             File tf = new File(strLine);
             if (tf.exists() && tf.isFile()) {
                 addTab(tf, tabcounter);
-                if (!tools.GlobalConstants.listOpenedFiles.contains(strLine)) {
-                    tools.GlobalConstants.listOpenedFiles.add(strLine);
+                if (!GlobalConstants.listOpenedFiles.contains(strLine)) {
+                    GlobalConstants.listOpenedFiles.add(strLine);
                 }
 
                 System.out.println(strLine);
@@ -639,7 +616,7 @@ public class ReLinuxIDE extends Application implements Runnable {
             }
             FileWriter fw = new FileWriter("appdb/files.xml");
             PrintWriter pw = new PrintWriter(fw);
-            for (String get : tools.GlobalConstants.listOpenedFiles) {
+            for (String get : GlobalConstants.listOpenedFiles) {
                 pw.println(get);
                 System.out.println("Printing " + get + " to appdb/files.xml");
             }
@@ -671,8 +648,8 @@ public class ReLinuxIDE extends Application implements Runnable {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("New  File: Select Destination Directory");
         String initialDir = "workspace";
-        if (tools.GlobalConstants.selectedProjectFolder != null) {
-            initialDir += ("/" + tools.GlobalConstants.selectedProjectFolder + "/src");
+        if (GlobalConstants.selectedProjectFolder != null) {
+            initialDir += ("/" + GlobalConstants.selectedProjectFolder + "/src");
         }
         File initFile = new File(initialDir);
         if (!initFile.exists()) {
@@ -680,9 +657,7 @@ public class ReLinuxIDE extends Application implements Runnable {
         }
         fileChooser.setInitialDirectory(initFile);
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("All Files", "*.*"),
-                new FileChooser.ExtensionFilter("Java Files", "*.java"),
-                new FileChooser.ExtensionFilter("XML MANIFEST Files", "*.mxml"));
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
         File selectedFile = fileChooser.showSaveDialog(stage);
         if (selectedFile != null) {
 
@@ -730,14 +705,14 @@ public class ReLinuxIDE extends Application implements Runnable {
         } catch (FileNotFoundException ex) {
             Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
         }
-        out.print(tools.GlobalConstants.ta[selectedtab].getText());
+        out.print(GlobalConstants.ta[selectedtab].getText());
         out.close();
         return true;
         // return doSaveAs();
     }
 
     public static void addTab(File selectedFile, int tabcounter) {
-        if (!tools.GlobalConstants.listOpenedFiles.isEmpty() && tools.GlobalConstants.listOpenedFiles.contains(selectedFile.getAbsolutePath())) {
+        if (!GlobalConstants.listOpenedFiles.isEmpty() && GlobalConstants.listOpenedFiles.contains(selectedFile.getAbsolutePath())) {
             ObservableList<Tab> templs = centerTabPane.getTabs();
             System.out.println("" + templs);
             for (int i = 0; i < templs.size(); i++) {
@@ -755,14 +730,14 @@ public class ReLinuxIDE extends Application implements Runnable {
             textTab[tabcounter].setId("" + tabcounter);
             textTab[tabcounter].setTooltip(new Tooltip(selectedFile.getAbsolutePath()));
             textTab[tabcounter].setOnClosed((Event e) -> {
-                tools.GlobalConstants.listOpenedFiles.clear();
+                GlobalConstants.listOpenedFiles.clear();
                 ObservableList<Tab> tl = centerTabPane.getTabs();
                 tl.stream().forEach((tl1) -> {
-                    tools.GlobalConstants.listOpenedFiles.add(tl1.getTooltip().getText());
+                    GlobalConstants.listOpenedFiles.add(tl1.getTooltip().getText());
                 });
             });
-            tools.GlobalConstants.listOpenedFiles.add(selectedFile.getAbsolutePath().trim());
-            tools.GlobalConstants.ta[tabcounter] = new SyntaxTextArea();
+            GlobalConstants.listOpenedFiles.add(selectedFile.getAbsolutePath().trim());
+            GlobalConstants.ta[tabcounter] = new SyntaxTextArea();
             //TextArea ta= new TextArea();
             //SwingNode sn = new SwingNode();
             String line = null;
@@ -775,17 +750,15 @@ public class ReLinuxIDE extends Application implements Runnable {
             } catch (IOException ex) {
                 Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
             }
-            tools.GlobalConstants.ta[tabcounter].setText(text);
-            PrintStream out = null;
-            try {
-                out = new PrintStream(selectedFile.getAbsolutePath()); //new AppendFileStream
+            GlobalConstants.ta[tabcounter].setText(text);
+
+            try (PrintStream out = new PrintStream(selectedFile.getAbsolutePath())) {
+                out.print(text);
             } catch (FileNotFoundException ex) {
                 Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
             }
-            out.print(text);
-            out.close();
 
-            textTab[tabcounter].setContent(tools.GlobalConstants.ta[tabcounter].getNode());
+            textTab[tabcounter].setContent(GlobalConstants.ta[tabcounter].getNode());
             textTab[tabcounter].getStyleClass().add(org.fxmisc.richtext.demo.JavaKeywordsAsync.class.getResource("java-keywords.css").toExternalForm());
             centerTabPane.getTabs().add(textTab[tabcounter]);
             IncrementTabcounter();
@@ -802,8 +775,8 @@ public class ReLinuxIDE extends Application implements Runnable {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save As File: Select Destination Directory");
         String initialDir = "workspace";
-        if (tools.GlobalConstants.selectedProjectFolder != null) {
-            initialDir += ("/" + tools.GlobalConstants.selectedProjectFolder);
+        if (GlobalConstants.selectedProjectFolder != null) {
+            initialDir += ("/" + GlobalConstants.selectedProjectFolder);
         }
         fileChooser.setInitialDirectory(new File(initialDir));
         fileChooser.getExtensionFilters().addAll(
@@ -820,7 +793,7 @@ public class ReLinuxIDE extends Application implements Runnable {
                 }
             }
             try {
-                write(selectedFile, tools.GlobalConstants.ta[selectedtab].getText());
+                write(selectedFile, GlobalConstants.ta[selectedtab].getText());
             } catch (IOException ex) {
                 Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -848,6 +821,70 @@ public class ReLinuxIDE extends Application implements Runnable {
         }
 
         ReLinuxIDE.launch(args);
+    }
+
+    public void doExtractFromISO() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Open Project: Select Manifest (Manifest.xml) File");
+        String initialDir = "workspace";
+        fileChooser.setInitialDirectory(new File(initialDir));
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("All Files", "*.*"),
+                new FileChooser.ExtensionFilter("ISO Image Files", "*.iso"));
+        File selectedFile = fileChooser.showOpenDialog(stage);
+        executeScript("scripts/extract-iso.sh", "workspace/" + GlobalConstants.selectedProjectFolder, selectedFile.getAbsolutePath());
+    }
+
+    void executeScript(String ScriptLocation, String... args) {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    ArrayList<String> commands = new ArrayList<String>();
+                    commands.add("/bin/bash");
+                    commands.add(ScriptLocation);
+                    commands.addAll(Arrays.asList(args));
+                    ProcessBuilder pb = new ProcessBuilder(commands);
+                    Process p = pb.start();
+                    BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+                    BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
+                    // read the output from the command
+                    System.out.println("Here is the standard output of the command:\n");
+
+                    String s = null;
+                    while ((s = stdInput.readLine()) != null) {
+                        final String fout = "\n" + s;
+                        Platform.runLater(new Runnable() {
+                            @Override
+                            public void run() {
+                                consoleArea.appendText(fout);
+                            }
+                        });
+                    }
+
+                    // read any errors from the attempted command
+                    System.out.println("Here is the standard error of the command (if any):\n");
+                    while ((s = stdError.readLine()) != null) {
+                        final String fout = "\n" + s;
+                        Platform.runLater(new Runnable() {
+                            @Override
+                            public void run() {
+                                consoleArea.appendText(fout);
+                            }
+                        });
+                    }
+                    stdError.close();
+                    stdInput.close();
+                    p.destroy();
+
+                } catch (IOException ex) {
+                    Logger.getLogger(ReLinuxIDE.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        });
+        thread.start();
     }
 
     @Override

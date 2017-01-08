@@ -85,10 +85,7 @@ public class settings {
             File f = new File(workingDir);
             Tools.outPrintln("" + f.getAbsolutePath());
 
-            File f9 = new File("appdb/results.db");
-            if (f9.exists()) {
-                Tools.outPrintln("results db deleted" + f9.delete());
-            }
+            
             GlobalConstants.dir_workspace = "workspace";
             File f3 = new File(workingDir + "/" + GlobalConstants.dir_workspace);
             if (!f3.exists()) {

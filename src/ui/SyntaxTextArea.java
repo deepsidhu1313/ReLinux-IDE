@@ -109,7 +109,7 @@ public class SyntaxTextArea {
                 .awaitLatest(textChanges)
                 .map(Try::get)
                 .subscribe(this::applyHighlighting);
-        codeArea.getStylesheets().add(SyntaxTextArea.class.getResource("res/css/default/java.css").toExternalForm());
+        codeArea.getStylesheets().add(SyntaxTextArea.class.getResource("java-keywords.css").toExternalForm());
     }
 
     public void setText(String text) {

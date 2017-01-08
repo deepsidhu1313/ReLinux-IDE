@@ -1,3 +1,3 @@
 #!/bin/sh
 
-gksudo java -jar ReLinux-IDE.jar
+ java -jar dist/ReLinux-IDE.jar

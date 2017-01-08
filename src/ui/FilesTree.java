@@ -9,6 +9,7 @@ package ui;
 import tools.GlobalConstants;
 import java.io.File;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
@@ -33,7 +34,7 @@ public class FilesTree implements Runnable {
     public static Image folderCollapseImage = new Image(ClassLoader.getSystemResourceAsStream("icons/folder.png"));
     public static Image folderExpandImage = new Image(ClassLoader.getSystemResourceAsStream("icons/folder-open.png"));
     public static Image fileImage = new Image(ClassLoader.getSystemResourceAsStream("icons/file.png"));
-
+    private static ArrayList<File> expandedDirs = new ArrayList<>();
     //SQLiteJDBC treedb = new SQLiteJDBC();
     String sql;
     ResultSet rs;
@@ -49,7 +50,7 @@ public class FilesTree implements Runnable {
     }
 
     private TreeView buildFileSystemBrowser() {
-        TreeItem<File> root = createNode(new File("workspace"));
+        TreeItem<File> root = createNode(f);
         return new TreeView<File>(root);
     }
 
@@ -143,11 +144,13 @@ public class FilesTree implements Runnable {
                             children.get(i).addEventHandler(TreeItem.branchCollapsedEvent(), new EventHandler() {
                                 @Override
                                 public void handle(Event e) {
+
                                     TreeItem<File> source = (TreeItem<File>) e.getSource();
                                     File source2 = source.getValue();
                                     if (source2.isDirectory() && !source.isExpanded()) {
                                         ImageView iv = (ImageView) source.getGraphic();
                                         iv.setImage(folderCollapseImage);
+                                        expandedDirs.remove(source2);
                                     }
                                 }
                             });
@@ -159,9 +162,12 @@ public class FilesTree implements Runnable {
                                     if (source2.isDirectory() && source.isExpanded()) {
                                         ImageView iv = (ImageView) source.getGraphic();
                                         iv.setImage(folderExpandImage);
+                                        if(! expandedDirs.contains(source2)){
+                                            expandedDirs.add(source2);}
                                     }
                                 }
                             });
+                            children.get(i).setExpanded(expandedDirs.contains(children.get(i).getValue()));
 
                         }
                         return children;
@@ -175,7 +181,7 @@ public class FilesTree implements Runnable {
 
     @Override
     public void run() {
-        //while (true) 
+
         {
             filetree.setSimpleRoot(f.getName());
             tv = this.buildFileSystemBrowser();
